@@ -4,58 +4,92 @@
 class JRMCowPlayer extends CustomPlayer;
 
 
-var Texture DefaultTalkTexture;
 simulated function SetMyMesh()
 {
 	Super.SetMyMesh();
 	bIsMultiSkinned = true;
 }
 
+static function SetMyMultiSkin(Actor SkinActor, string SkinName, string FaceName, byte TeamNum)
+{
+
+	// Run standard SetMultiSkin...
+
+	SetMultiSkin(SkinActor, SkinName, FaceName, TeamNum);
+}
 
 static function SetMultiSkin(Actor SkinActor, string SkinName, string FaceName, byte TeamNum)
 {
-	local string SkinItem, SkinPackage;
 
+
+	local string SkinItem, FaceItem, SkinPackage, FacePackage;
+
+
+
+	// 1. Sanitize SkinName
 	if ( SkinName == "" )
 		SkinName = default.DefaultSkinName;
-	else
-	{
-		SkinItem = SkinActor.GetItemName(SkinName);
-		SkinPackage = Left(SkinName, Len(SkinName) - Len(SkinItem));
 
-		if( SkinPackage == "" )
-		{
-			SkinPackage = default.DefaultCustomPackage;
-			SkinName = SkinPackage $ SkinName;
-		}
-	}
+	SkinItem = SkinActor.GetItemName(SkinName);
+	SkinPackage = Left(SkinName, Len(SkinName) - Len(SkinItem));
 
-	// Slot 1: Body (Not team-based)
-	if( !SetSkinElement(SkinActor, 1, SkinName$"0", default.DefaultSkinName$"1") )
-		SkinName = default.DefaultSkinName;
+	if ( SkinPackage == "" || SkinPackage == "None." )
+		SkinPackage = default.DefaultCustomPackage;
 
-	// Slot 2: Backpack (Team-based)
+	// Strip trailing '1' if UT99 passed WARC1 or ATMC1
+	if ( Right(SkinItem, 1) == "1" )
+		SkinItem = Left(SkinItem, Len(SkinItem) - 1);
+
+	// 2. Sanitize FaceName
+	if ( FaceName == "" )
+		FaceName = default.DefaultFace;
+
+	FaceItem = SkinActor.GetItemName(FaceName);
+	FacePackage = Left(FaceName, Len(FaceName) - Len(FaceItem));
+
+	if ( FacePackage == "" || FacePackage == "None." )
+		FacePackage = default.DefaultCustomPackage;
+
+	
+	log("=========================================");
+	log(":: STUFF -  P L A Y E R :: ");
+	log("Selected Class  : "	$ SkinActor.Class);
+	log("Passed SkinName : '"	$ SkinName $ "'");
+	log("FacePackage  : "		$FaceItem ) ;
+	log("FaceName  : "			$ FaceName);
+	log("SkinPackage  : "		$ SkinPackage);
+	log("SkinItem  : "			$ SkinItem);
+	log("Passed FaceName : '"	$ FaceName $ "'");
+	log("Passed TeamNum  : "	$ TeamNum);
+	log("Mesh Assigned   : "	$ SkinActor.Mesh);
+	log("=========================================");
+
+
+
+	// :: 0 Body - Skin ::
+	SetSkinElement(SkinActor, 0, SkinPackage $ SkinItem $ "0", default.DefaultCustomPackage $ "ATMC0");
+
+	// :: 1 Backpack  - Team + Skin ::
 	if( TeamNum < 4 )
-		SetSkinElement(SkinActor, 2, SkinName$"1T_"$String(TeamNum), SkinName$"1");
+		SetSkinElement(SkinActor, 1, SkinPackage $ SkinItem $ "1T_" $ String(TeamNum), SkinPackage $ SkinItem $ "1");
 	else
-		SetSkinElement(SkinActor, 2, SkinName$"1", SkinName$"1");
+		SetSkinElement(SkinActor, 1, SkinPackage $ SkinItem $ "1", default.DefaultCustomPackage $ "ATMC1");
 
-	// Slot 3: Face (Customizable, non-team)
-	SetSkinElement(SkinActor, 3, SkinName$"2"$FaceName, default.DefaultSkinName$"2"$default.DefaultFace);
+	// :: 2 Head  -  Skin + Face ::
+	SetSkinElement(SkinActor, 2, SkinPackage $ SkinItem $ "2" $ FaceItem, default.DefaultCustomPackage $ "ATMC2DEFAULT");
 
-	// Set the TalkTexture (UI Portrait)
+	// :: 5 Chat  -  Skin + Face :: 
 	if( Pawn(SkinActor) != None )
 	{
-		if ( FaceName != "" )
-			Pawn(SkinActor).PlayerReplicationInfo.TalkTexture = Texture(DynamicLoadObject(SkinName$"5"$FaceName, class'Texture'));
-
+		Pawn(SkinActor).PlayerReplicationInfo.TalkTexture = Texture(DynamicLoadObject(SkinPackage $ SkinItem $ "5" $ FaceItem, class'Texture'));
+		
 		if ( Pawn(SkinActor).PlayerReplicationInfo.TalkTexture == None )
-			Pawn(SkinActor).PlayerReplicationInfo.TalkTexture = Texture(DynamicLoadObject(default.DefaultFace, class'Texture'));
+			Pawn(SkinActor).PlayerReplicationInfo.TalkTexture = Texture(DynamicLoadObject(default.DefaultCustomPackage $ "ATMC5DEFAULT", class'Texture'));
 	}
 }
 
 
-// special animation functions
+// :: Cow anim overrides... 
 function PlayDying(name DamageType, vector HitLoc)
 {
 	if ( Mesh == FallBackMesh )
@@ -148,26 +182,23 @@ defaultproperties
 	MenuName="Nali Cow Fixed"
 	VoiceType="MultiMesh.CowVoice"
 	Mesh=LodMesh'CowFixJRM26.TCowNewJRM'
-	SelectionMesh="CowFixJRM26.TCowNewJRM"
+	SelectionMesh='CowFixJRM26.TCowNewJRM'
+
 
 	StatusDoll=Texture'CowFixJRM26.HUD.CowStatusDoll'
     StatusBelt=Texture'CowFixJRM26.HUD.CowBelt'
 
 
-	  DefaultSkinName="CowFixJRM26Skins.ATMC"
+	  DefaultSkinName="ATMC"
       DefaultPackage="CowFixJRM26Skins."
 	  DefaultCustomPackage="CowFixJRM26Skins."
       DefaultFace="Default"
       TeamSkin="ATMC1T_"
-      HighestSkinNumber=2
-      ChangesWithTeam(1)=1
-      ChangesWithFace(0)=0
-	  ChangesWithFace(1)=0
-	  ChangesWithFace(2)=0
-	  ChangesWithFace(3)=0
+
       DefaultFace="Default"
       bIsMultiSkinned=True
-	  MultiSkins(0)=Texture'CowFixJRM26Skins.ATMC0'
-	  MultiSkins(1)=Texture'CowFixJRM26Skins.ATMC1'
-	  MultiSkins(2)=Texture'CowFixJRM26Skins.ATMC2Default'
+	
+	  FixedSkin=0
+	  TeamSkin1=1
+	  FaceSkin=2
 }
